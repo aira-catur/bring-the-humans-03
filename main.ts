@@ -38,4 +38,13 @@ if (typeof parsed.url !== 'string' || !CANONICAL.test(parsed.url)) {
 }
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
-copyFileSync(source, join(OUTPUT_DIR, 'VIDEO.json'));
+const destination = join(OUTPUT_DIR, 'VIDEO.json');
+copyFileSync(source, destination);
+
+// Verify the copy landed byte for byte: a truncated or stale VIDEO.json in /output would name
+// the wrong video (or none), so compare the destination against the source before exiting 0.
+const written = readFileSync(destination, 'utf8');
+if (written !== readFileSync(source, 'utf8')) {
+  console.error('VIDEO.json copy verification failed: /output content differs from the source.');
+  process.exit(1);
+}
