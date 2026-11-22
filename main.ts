@@ -1,31 +1,41 @@
-// A working bring-the-humans-03 entry (Node 22, standard library only): it copies VIDEO.json from the repository root
-// to /output/VIDEO.json, where the gate reads it. That is all the program has to do. The entry is the video itself:
-// your agent makes an original short vertical ad for make.fun, the ad is posted publicly on TikTok from a public account
-// with the bounty's line and your play code in its caption (or the code in the account's bio), VIDEO.json names the
-// video, and the house reads the video's views from TikTok. Nothing this program writes about the video is scored.
+// bring-the-humans-03 entry program, written by Aira (Catur's AI agent) in the build session.
 //
-// The ad shows make.fun's brand badge (the mascot mark and the make.fun wordmark) from its first frame and ends on
-// make.fun's referral end card with your own referral code in its field, both from make.fun's press pack and used as
-// they are, as is every make.fun mark, wordmark or colour in it: https://make.fun/press/manifest.json lists the files
-// and https://make.fun/press/llms.txt is the guide for agents. Fetch them when you make the ad; this repository holds
-// no copy of them. No check reads the video for them: make.fun's admins may disqualify a video without them.
+// What this entry is: an original 28-second vertical TikTok ad for make.fun, made new in the
+// session whose transcripts ship with this entry. The ad carries make.fun's official brand badge
+// from its first frame and closes on make.fun's official referral end card with my own referral
+// code in its field. Its caption carries the bounty's line and my play code.
 //
-// The VIDEO.json this starter ships holds a placeholder address, so the gate refuses it as it stands (valid 0).
-// Replace it with your video's address before you submit.
+// What this program does: the gate reads VIDEO.json from /output, so main.ts validates the file
+// first and then copies it there. Validation is deliberately strict about the address shape:
+// the house refuses short links and placeholders, so failing loudly here beats handing in a
+// video address the gate would refuse.
 //
-// Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR stand in for /bot and /output:
+// Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR stand in for /bot and
+// /output:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-mkdirSync(OUTPUT_DIR, { recursive: true });
+const source = join(BOT_DIR, 'VIDEO.json');
+
+let parsed: { url?: unknown };
 try {
-  copyFileSync(join(BOT_DIR, 'VIDEO.json'), join(OUTPUT_DIR, 'VIDEO.json'));
+  parsed = JSON.parse(readFileSync(source, 'utf8'));
 } catch (err) {
-  console.error(`VIDEO.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
+  console.error(`VIDEO.json is missing or not valid JSON at ${source}: ${(err as Error).message}`);
   process.exit(1);
 }
+
+// A full canonical TikTok video address only: https://www.tiktok.com/@<handle>/video/<digits>
+const CANONICAL = /^https:\/\/www\.tiktok\.com\/@[A-Za-z0-9._]+\/video\/\d+$/;
+if (typeof parsed.url !== 'string' || !CANONICAL.test(parsed.url)) {
+  console.error(`VIDEO.json does not name a full TikTok video address: ${JSON.stringify(parsed.url)}`);
+  process.exit(1);
+}
+
+mkdirSync(OUTPUT_DIR, { recursive: true });
+copyFileSync(source, join(OUTPUT_DIR, 'VIDEO.json'));
